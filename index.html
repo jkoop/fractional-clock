@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -21,13 +21,18 @@
         width: fit-content;
         height: fit-content;
         margin: auto;
-        font-size: 40vw;
+        font-size: 35vw;
+        text-wrap: nowrap;
       }
 
       .foot {
         position: fixed;
         bottom: 0;
         color: grey;
+      }
+
+      input {
+        color-scheme: dark;
       }
 
       @media (prefers-color-scheme: dark) {
@@ -46,25 +51,62 @@
   <body>
     <h1 id="clock"></h1>
     <p class="foot">
+      <label
+        >max denominator
+        <input
+          id="max-denominator"
+          type="range"
+          min="2"
+          max="99"
+          value="9"
+        /><span id="max-denominator-display">9</span></label
+      ><br />
+      <label><input id="round-down" type="checkbox" /> always round down</label
+      ><br />
       <i>
-        This page last changed Jul 21 2025; created Jul 21 2025;
+        This page last changed Jul 22 2025; created Jul 21 2025;
         <a target="_blank" href="https://github.com/jkoop/fractional-clock"
           >source on GitHub</a
         >;
       </i>
     </p>
     <script>
+      const clock = document.getElementById("clock");
+      const maxDenominator = document.getElementById("max-denominator");
+      const roundDown = document.getElementById("round-down");
+
+      maxDenominator.addEventListener("input", () => {
+        const display = document.getElementById("max-denominator-display");
+        display.innerText = maxDenominator.value;
+        updateClock();
+      });
+
       function updateClock() {
-        const clock = document.getElementById("clock");
         const time = new Date();
-        const decimal = time.getMinutes() / 60 + time.getSeconds() / 3600;
+        const decimal =
+          time.getMinutes() / 60 +
+          time.getSeconds() / 3600 +
+          time.getMilliseconds() / 3600_000;
         const wrappedDecimal = decimal > 0.5 ? 1 - decimal : decimal;
 
-        let bestFraction = [Math.abs(wrappedDecimal), 0, 0]; // error, numerator, denominator
-        for (const denominator of Array(10).keys()) {
+        let bestFraction;
+        if (roundDown.checked) {
+          bestFraction = [decimal, 0, 0]; // error, numerator, denominator
+        } else {
+          bestFraction = [Math.abs(wrappedDecimal), 0, 0]; // error, numerator, denominator
+        }
+        for (const denominator of Array(
+          parseInt(maxDenominator.value) + 1
+        ).keys()) {
           if (denominator === 0) continue;
           for (const numerator of Array(denominator).keys()) {
-            const error = Math.abs(decimal - numerator / denominator);
+            let error;
+            if (roundDown.checked) {
+              error = decimal - numerator / denominator;
+              if (error < 0) error = Infinity;
+            } else {
+              error = Math.abs(decimal - numerator / denominator);
+            }
             if (error < bestFraction[0]) {
               bestFraction = [error, numerator, denominator];
             }
@@ -82,27 +124,36 @@
         if (bestFraction[1] === 0) {
           clock.textContent = hours;
         } else {
-          const numerator = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"][
-            bestFraction[1]
-          ];
-          const denominator = [
-            "₀",
-            "₁",
-            "₂",
-            "₃",
-            "₄",
-            "₅",
-            "₆",
-            "₇",
-            "₈",
-            "₉",
-          ][bestFraction[2]];
+          const numerator = getSuperscript(bestFraction[1]);
+          const denominator = getSubscript(bestFraction[2]);
           clock.textContent = `${hours} ${numerator}/${denominator}`;
         }
       }
 
-      setInterval(updateClock, 1000);
+      setInterval(updateClock, 100);
       updateClock();
+
+      function getSuperscript(number) {
+        number = "" + number;
+        superscript = "";
+        for (let char of number.split("")) {
+          char = parseInt(char);
+          superscript += ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"][
+            char
+          ];
+        }
+        return superscript;
+      }
+
+      function getSubscript(number) {
+        number = "" + number;
+        subscript = "";
+        for (let char of number.split("")) {
+          char = parseInt(char);
+          subscript += ["₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"][char];
+        }
+        return subscript;
+      }
     </script>
   </body>
 </html>
